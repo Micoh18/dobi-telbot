@@ -1,0 +1,23 @@
+{
+  "name": "dobi-telegram-bot",
+  "version": "1.0.0",
+  "description": "DOBI - Agente onchain para RWAs/DePIN con integración Claude AI",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "keywords": ["telegram", "bot", "claude", "ai", "depin", "rwa"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "telegraf": "^4.16.3",
+    "@anthropic-ai/sdk": "^0.30.1",
+    "dotenv": "^16.4.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+
