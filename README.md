@@ -1,231 +1,262 @@
-# 🤖 DOBI - Telegram Bot con Claude AI
+# 🤖 DOBI - On-Chain AI Agent
 
-Bot de Telegram inteligente que combina comandos específicos para consultar APIs con conversación natural potenciada por Claude AI de Anthropic.
+On-chain AI agent from virtuals.io ecosystem specialized in IoT/DePIN data validation, transaction approval, and autonomous asset operations (DAM). Combines secure API queries with technical conversation powered by Claude AI.
 
-## 🌟 Características
+## 🌟 Core Features
 
-- ✅ **Conversación Natural**: Usa Claude AI para responder preguntas sobre DePIN, RWAs y blockchain
-- ✅ **Comandos de Status**: Consulta el estado de cargadores desde tu API
-- ✅ **Detección Inteligente**: Distingue automáticamente entre conversación y comandos
-- ✅ **Contexto Conversacional**: Recuerda mensajes recientes para conversaciones coherentes
-- ✅ **Rate Limiting**: Protección contra spam
-- ✅ **Error Handling**: Manejo robusto de errores con mensajes útiles
-- ✅ **Formateo Rico**: Mensajes con HTML, emojis y formato profesional
+- ✅ **Technical Conversation**: Claude AI for DePIN, IoT validation, DAM operations, oracle mechanics
+- ✅ **Telemetry Queries**: Secure GET-only commands for charger data and audit trails
+- ✅ **Evidence-First Approach**: Verified data → trust → capital flows → machines deploy
+- ✅ **Smart Intent Detection**: Clear separation between "Talk" (conversation) and "Action" (commands)
+- ✅ **Production-Ready**: Low latency, uptime focus, end-to-end traceability
+- ✅ **Security by Design**: No PUT/POST operations on public bot, TEE preference
+- ✅ **Technical Precision**: 80% operational, 20% educational content
 
-## 📋 Prerequisitos
+## 📋 Prerequisites
 
-- Node.js 18 o superior
-- Cuenta de Telegram
-- API Key de Anthropic (Claude)
-- API de cargadores funcionando
+- Node.js 18 or higher
+- Telegram account
+- Anthropic API Key (Claude)
+- DOBI Electric Chargers API access
 
-## 🚀 Instalación
+## 🚀 Installation
 
-1. **Clonar o crear el proyecto**
+1. **Clone or create the project**
 ```bash
 mkdir dobi-bot
 cd dobi-bot
 ```
 
-2. **Instalar dependencias**
+2. **Install dependencies**
 ```bash
-npm install
+npm install telegraf dotenv @anthropic-ai/sdk
 ```
 
-3. **Configurar variables de entorno**
+3. **Configure environment variables**
 
-Crea un archivo `.env` basado en `.env.example`:
+Create a `.env` file:
 
 ```bash
-cp .env.example .env
+touch .env
 ```
 
-Edita `.env` con tus credenciales:
+Edit `.env` with your credentials:
 
 ```env
-TELEGRAM_BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrsTUVwxyz
-ANTHROPIC_API_KEY=sk-ant-api03-xxxxxxxxxxxxxxxxxx
-API_BASE_URL=https://tu-api.com
+TELEGRAM_BOT_TOKEN=8445157577:AAEuFQzq3YTjLHegoVjaEK-zXfRDPct76icA
+ANTHROPIC_API_KEY=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
+API_BASE_URL=https://api-aleph.dobi.guru
+NODE_ENV=production
+PORT=3000
 ```
 
-### 🔑 Obtener credenciales
+### 🔑 Getting Credentials
 
 **Telegram Bot Token:**
-1. Habla con [@BotFather](https://t.me/botfather) en Telegram
-2. Envía `/newbot`
-3. Sigue las instrucciones
-4. Copia el token que te da
+1. Talk to [@BotFather](https://t.me/botfather) on Telegram
+2. Send `/newbot`
+3. Follow instructions
+4. Copy the token provided
 
 **Anthropic API Key:**
-1. Ve a [console.anthropic.com](https://console.anthropic.com/)
-2. Crea una cuenta o inicia sesión
-3. Ve a "API Keys"
-4. Crea una nueva API key
-5. Copia la key (empieza con `sk-ant-`)
+1. Go to [console.anthropic.com](https://console.anthropic.com/)
+2. Create account or sign in
+3. Go to "API Keys"
+4. Create new API key
+5. Copy the key (starts with `sk-ant-`)
 
-## 🎮 Uso
+## 🎮 Usage
 
-**Iniciar el bot:**
+**Start the bot:**
 ```bash
-npm start
+node index.js
 ```
 
-**Modo desarrollo (auto-reload):**
+**Development mode (auto-reload):**
 ```bash
 npm run dev
 ```
 
-## 📱 Comandos del Bot
+## 🎯 DOBI Personality
 
-### Consultas
-| Comando | Descripción |
+**Mantra:** "Verified data → trust → capital flows → machines deploy"
+
+**Core Identity:**
+- Techno-pragmatic: solves first, explains after
+- Evidence-obsessed: prefers logs, hashes, proofs, metrics
+- Production-oriented: values uptime, traceability, low latency
+- Builder-friendly: speaks to DePIN operators, IoT integrators, oracles
+
+## 📱 Bot Commands
+
+### Data Queries (GET-only, Secure)
+| Command | Description |
 |---------|-------------|
-| `/status` | Ver todos los cargadores con información detallada |
-| `/status charger_001` | Ver detalle completo de un cargador específico |
-| `/logs` | Ver logs del sistema (últimos 10) |
-| `/logs charger_001` | Ver logs de un cargador específico |
-| `/logs --blockchain` | Ver logs incluyendo datos de blockchain |
+| `/status` | Telemetry overview (7 chargers) |
+| `/status CHARGER_001` | Detailed metrics + audit trail |
+| `/logs` | System audit trail (last 10 entries) |
+| `/logs CHARGER_001` | Charger-specific logs |
 
-### Acciones
-| Comando | Descripción |
+### System Commands
+| Command | Description |
 |---------|-------------|
-| `/action charger_001 turn_on` | Encender un cargador |
-| `/action charger_001 turn_off` | Apagar un cargador |
-| `/action charger_001 restart` | Reiniciar un cargador |
-| `/action charger_001 recharge_battery` | Recargar batería al 100% |
-| `/action charger_001 create_ticket` | Crear ticket de soporte |
-| `/action charger_001 pay_costs` | Pagar costos operativos (40% balance) |
-| `/action charger_001 send_to_owner` | Enviar balance al propietario |
+| `/start` | Initialize session + welcome |
+| `/help` | Operational manual |
+| `/clear` | Clear conversation context |
 
-### Transacciones
-| Comando | Descripción |
-|---------|-------------|
-| `/tx charger_001` | Simular transacción con monto aleatorio |
-| `/tx charger_001 50.5` | Simular transacción por $50.5 |
+### Security Note
+⚠️ **No PUT/POST operations** - Public bot is read-only for security. All charger control operations require authenticated access.
 
-### Generales
-| Comando | Descripción |
-|---------|-------------|
-| `/start` | Iniciar el bot y ver bienvenida |
-| `/help` | Ver ayuda y todos los comandos |
-| `/clear` | Limpiar historial de conversación |
+## 💬 Technical Conversation
 
-## 💬 Conversación Natural
-
-Simplemente escribe de forma natural:
+Natural language interaction with technical precision:
 
 ```
-Usuario: ¿Qué es DePIN?
-DOBI: DePIN (Decentralized Physical Infrastructure Networks) son redes...
+User: What is DePIN validation?
+DOBI: DePIN validation involves cross-correlation checks, range validation, and origin signature verification. Evidence first, then action.
 
-Usuario: ¿Y cómo funciona con blockchain?
-DOBI: Las redes DePIN usan blockchain para...
+User: How do DAM operations work?
+DOBI: Autonomous operations include maintenance tickets, scheduled payments, and automated upgrades. All actions leave auditable on-chain trails.
 
-Usuario: muéstrame el status de charger_001
-DOBI: [Muestra información del cargador]
+User: show me charger telemetry
+DOBI: [Redirects to /status command]
 ```
 
 ## 🏗️ API - DOBI Electric Chargers
 
 **Base URL:** `https://api-aleph.dobi.guru`
 
-### Endpoints principales:
+### Available Endpoints (GET-only for public bot):
 
-| Método | Endpoint | Descripción |
+| Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/chargers/detailed` | Lista todos los cargadores con info detallada |
-| GET | `/api/chargers/{id}` | Detalle de un cargador específico |
-| POST | `/api/chargers/{id}/action` | Ejecutar acción (turn_on, turn_off, etc) |
-| POST | `/api/chargers/{id}/simulate_transaction` | Simular transacción |
-| GET | `/api/logs` | Obtener logs del sistema |
+| GET | `/api/chargers/detailed` | List all chargers with detailed telemetry |
+| GET | `/api/chargers/{id}` | Specific charger metrics + audit trail |
+| GET | `/api/logs` | System audit trail with timestamps |
 
-Ver documentación completa en [`API_REAL.md`](./API_REAL.md)
+### Response Format:
+```json
+{
+  "summary": {...},
+  "chargers": [
+    {
+      "id_charger": "CHARGER_001",
+      "status": "active",
+      "power": 7.4,
+      "battery": 51.9,
+      "schedule_info": {...},
+      "transactions": 38
+    }
+  ],
+  "system_info": {...}
+}
+```
 
-**Valores de status:**
-- `available` / `idle` - Disponible (🟢)
-- `charging` - En uso (⚡️)
-- `offline` / `error` - Fuera de línea (🔴)
-- `maintenance` - Mantenimiento (🟡)
+**Status Values:**
+- `active` - Operational (🟢)
+- `inactive` - Offline (🔴)
+- `charging` - In use (⚡️)
 
-## 🔧 Configuración Avanzada
+## 🔧 Advanced Configuration
 
-### Personalidad de DOBI
+### DOBI Personality
 
-Edita `DOBI_SYSTEM_PROMPT` en `index.js` para cambiar la personalidad del bot.
+Edit `DOBI_SYSTEM_PROMPT` in `index.js` to modify the agent's personality and technical focus.
 
-### Contexto Conversacional
+### Conversation Context
 
-Por defecto, mantiene los últimos 10 mensajes. Modifica `MAX_CONTEXT_MESSAGES`:
+Default: maintains last 10 messages. Modify `MAX_CONTEXT_MESSAGES`:
 
 ```javascript
-const MAX_CONTEXT_MESSAGES = 10; // Ajustar según necesites
+const MAX_CONTEXT_MESSAGES = 10; // Adjust as needed
 ```
 
 ### Rate Limiting
 
-Modifica el tiempo entre mensajes:
+Modify time between messages:
 
 ```javascript
-const RATE_LIMIT_MS = 1000; // Milisegundos
+const RATE_LIMIT_MS = 1000; // Milliseconds
 ```
+
+### Claude Model Selection
+
+Current model: `claude-3-5-haiku-20241022` (fast, cost-effective)
+
+Available models:
+- `claude-3-5-haiku-20241022` - Fast, efficient
+- `claude-3-5-sonnet-20240620` - Balanced
+- `claude-3-opus-20240229` - Most capable
 
 ## 🐛 Troubleshooting
 
-### El bot no responde
-- Verifica que el token de Telegram sea correcto
-- Comprueba que el bot esté corriendo (`npm start`)
-- Revisa los logs en la consola
+### Bot not responding
+- Verify Telegram token is correct
+- Check bot is running (`node index.js`)
+- Review console logs
 
-### Claude no responde (usa fallback)
-- Verifica que `ANTHROPIC_API_KEY` sea válida
-- Comprueba tu balance en [console.anthropic.com](https://console.anthropic.com/)
-- Revisa los logs para ver errores específicos
+### Claude using fallback responses
+- Verify `ANTHROPIC_API_KEY` is valid
+- Check balance at [console.anthropic.com](https://console.anthropic.com/)
+- Review logs for specific errors
 
-### La API no responde
-- Verifica que `API_BASE_URL` sea correcta (sin `/` final)
-- Comprueba que la API esté funcionando (prueba con curl/Postman)
-- Revisa que los endpoints sigan el formato esperado
+### API not responding
+- Verify `API_BASE_URL` is correct (no trailing `/`)
+- Test API directly with curl/Postman
+- Check endpoint formats match expected structure
 
-### Error "dropPendingUpdates"
-Es normal al reiniciar el bot. Ignora mensajes antiguos.
+### "dropPendingUpdates" error
+Normal when restarting bot. Ignores old messages.
 
-## 📊 Monitoreo
+### Telemetry query failures
+- Check API endpoint availability
+- Verify charger IDs use uppercase format (CHARGER_001)
+- Review network connectivity
 
-El bot muestra información útil al iniciar:
+## 📊 Monitoring
+
+Bot displays operational status on startup:
 
 ```
-✅ DOBI está online y listo para trabajar
-📱 Bot username: @tu_bot
-🤖 Claude AI: Activado
-🔌 API: https://tu-api.com
+✅ DOBI operational - ready for telemetry queries
+📱 Bot: @dobi_agent
+🤖 Claude AI: Active (haiku-20241022)
+🔌 API: https://api-aleph.dobi.guru
+⚡️ Evidence first, then action
 ```
 
-## 🔒 Seguridad
+## 🔒 Security
 
-- ✅ Nunca compartas tu `.env` o tokens
-- ✅ Usa `.gitignore` para excluir archivos sensibles
-- ✅ Rota tus API keys periódicamente
-- ✅ Implementa autenticación en tu API si es necesario
+- ✅ Never share `.env` or tokens publicly
+- ✅ Use `.gitignore` to exclude sensitive files
+- ✅ Rotate API keys periodically
+- ✅ GET-only operations for public bot (no PUT/POST)
+- ✅ TEE preference for sensitive operations
+- ✅ Evidence-based validation before any actions
 
-## 📚 Referencias
+## 📚 References
 
-- [Documentación de Claude](https://docs.anthropic.com/)
+- [Claude Documentation](https://docs.anthropic.com/)
 - [Telegram Bot API](https://core.telegram.org/bots/api)
 - [Telegraf Framework](https://telegraf.js.org/)
 - [Anthropic SDK](https://github.com/anthropics/anthropic-sdk-typescript)
+- [DePIN Documentation](https://docs.depin.io/)
+- [IoT Data Validation](https://docs.oracle.com/en/solutions/iot-data-validation/)
 
-## 🤝 Contribuir
+## 🤝 Contributing
 
-Si encuentras bugs o tienes sugerencias:
-1. Abre un issue
-2. Propón mejoras
-3. Comparte tu experiencia
+Found bugs or have suggestions?
+1. Open an issue
+2. Propose improvements
+3. Share your experience
 
-## 📝 Licencia
+## 📝 License
 
-MIT License - Úsalo libremente para tus proyectos.
+MIT License - Use freely for your projects.
 
 ---
 
-**Hecho con ⚡️ por el equipo DOBI**
+**Built with ⚡️ by the DOBI team**
+
+*"Verified data → trust → capital flows → machines deploy"*
 

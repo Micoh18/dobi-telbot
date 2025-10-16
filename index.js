@@ -70,6 +70,12 @@ TONE & STYLE:
 - Emojis: Spartan; only when they add signal (⚡ for availability, ✅/⚠️ for status).
 - Short sentences & useful formatting: bullets, tight tables, readable codes/ids.
 
+RESPONSE BOUNDARIES:
+- Default answers stay under 120 words. Go longer only if user explicitly requests a deep dive.
+- Prefer 2-4 tight bullets or a compact paragraph; no walls of text or section headers.
+- Skip bios about your architecture, origins, or vendor unless the user insists after a warning.
+- Make every sentence carry operational value; no filler or theatrics.
+
 INTERACTION MODES:
 1) Conversation Mode ("Talk"): Explains, educates, summarizes metrics, suggests next steps. Never pretends to act.
 2) Execution Mode ("Action"): Triggers endpoints/tx with explicit confirmation, clear requirements, and pre-checks.
@@ -92,6 +98,7 @@ DON'T:
 - Don't embellish metrics
 - Don't execute without confirmation
 - Don't mix chit-chat with silent action
+- Don't volunteer internal stack details or brand names unless policy demands it
 
 VOCABULARY & MICRO-PHRASES:
 - "Evidence first, then action."
@@ -212,20 +219,89 @@ ${charger.transactions ? `🔄 <b>Transactions:</b> ${charger.transactions}\n` :
 function detectsStatusIntent(text) {
   const lowerText = text.toLowerCase();
   
+  // Frases que NO deben activar status (conversación normal)
+  const conversationPatterns = [
+    /^como estas?$/,
+    /^cómo estás?$/,
+    /^como te encuentras$/,
+    /^cómo te encuentras$/,
+    /^que tal$/,
+    /^qué tal$/,
+    /^hola dobi$/,
+    /^hi dobi$/,
+    /^hello dobi$/
+  ];
+  
+  // Si es una conversación normal, no activar status
+  if (conversationPatterns.some(pattern => pattern.test(lowerText.trim()))) {
+    return false;
+  }
+  
   // Palabras clave que indican intención de consultar status
   const statusKeywords = [
     '/status',
     'status de',
     'estado de',
     'estado del',
-    'como esta',
-    'cómo está',
     'ver estado',
     'consultar estado',
-    'charger_'
+    'charger_',
+    'estado del cargador',
+    'status del cargador'
+  ];
+
+  if (statusKeywords.some(keyword => lowerText.includes(keyword))) {
+    return true;
+  }
+
+  // Solo activar status si hay contexto específico
+  const specificStatusPatterns = [
+    /\bstatus\b.*\bcharger\b/,
+    /\bcharger\b.*\bstatus\b/,
+    /\bestado\b.*\bcargador\b/,
+    /\bcargador\b.*\bestado\b/
   ];
   
-  return statusKeywords.some(keyword => lowerText.includes(keyword));
+  return specificStatusPatterns.some(pattern => pattern.test(lowerText));
+}
+
+/**
+ * Detectar si el mensaje intenta conocer la pila técnica del bot
+ */
+function detectsStackProbe(text) {
+  const lowerText = text.toLowerCase();
+  const stackKeywords = [
+    'which llm',
+    'what llm',
+    'llm are you using',
+    'which model',
+    'what model',
+    'model are you using',
+    'language model',
+    'anthropic',
+    'claude',
+    'openai',
+    'gpt'
+  ];
+
+  return stackKeywords.some(keyword => lowerText.includes(keyword));
+}
+
+/**
+ * Detectar si el mensaje pide información de logs
+ */
+function detectsLogsIntent(text) {
+  const lowerText = text.toLowerCase().trim();
+  
+  // Check if it's only "log" or "logs" as a standalone word or with minimal context
+  const logsPatterns = [
+    /^logs?$/,                    // Just "log" or "logs"
+    /^ver logs?$/,                // "ver log" or "ver logs"
+    /^show logs?$/,               // "show log" or "show logs"
+    /\blogs?\b/                   // Word "log" or "logs" anywhere
+  ];
+
+  return logsPatterns.some(pattern => pattern.test(lowerText));
 }
 
 /**
@@ -464,7 +540,7 @@ async function getClaudeResponse(userMessage, userId, userName) {
   try {
     const response = await anthropic.messages.create({
       model: 'claude-3-5-haiku-20241022', // Haiku 3.5 - rápido y económico
-      max_tokens: 500, // Respuestas breves
+      max_tokens: 220, // Mantener respuestas concisas
       system: DOBI_SYSTEM_PROMPT,
       messages: context
     });
@@ -485,6 +561,49 @@ async function getClaudeResponse(userMessage, userId, userName) {
 }
 
 // ==================== TELEGRAM HANDLERS ====================
+
+/**
+ * Middleware para filtrar mensajes en grupos
+ */
+bot.use(async (ctx, next) => {
+  const chatType = ctx.chat?.type;
+  const incomingText = ctx.message?.text;
+
+  if (!incomingText) {
+    return next();
+  }
+
+  const botInfo = ctx.botInfo || bot.botInfo;
+  const botUsername = botInfo?.username;
+  const botId = botInfo?.id;
+
+  // Debug log
+  console.log(`[DEBUG] Chat type: ${chatType}, Message: "${incomingText}"`);
+  
+  // Si es un grupo y no es un comando, verificar si debe responder
+  if ((chatType === 'group' || chatType === 'supergroup') && !incomingText.startsWith('/')) {
+    if (!botUsername || !botId) {
+      console.warn('[WARN] Bot info unavailable; skipping group filter logic.');
+      return next();
+    }
+
+    const isMentioned = incomingText.includes(`@${botUsername}`);
+    const isReplyToBot = ctx.message.reply_to_message?.from?.id === botId;
+    
+    console.log(`[DEBUG] Bot username: ${botUsername}, Mentioned: ${isMentioned}, Reply: ${isReplyToBot}`);
+    
+    // Si no es mencionado y no es reply al bot, ignorar completamente
+    if (!isMentioned && !isReplyToBot) {
+      console.log(`[DEBUG] Ignoring message in group - no mention or reply`);
+      return; // No procesar este mensaje
+    }
+    
+    console.log(`[DEBUG] Processing message in group`);
+  }
+  
+  // Continuar con el siguiente handler
+  await next();
+});
 
 /**
  * Comando /start
@@ -528,7 +647,7 @@ bot.command('help', async (ctx) => {
 <b>📊 Data Queries:</b>
 • <code>/status</code> - Telemetry overview (7 chargers)
 • <code>/status CHARGER_001</code> - Detailed metrics + audit trail
-• <code>/logs</code> - System audit trail (last 10 entries)
+• <code>/logs</code> - System audit trail (last 5 entries)
 • <code>/logs CHARGER_001</code> - Charger-specific logs
 
 <b>💬 Technical Discussion:</b>
@@ -622,41 +741,82 @@ bot.command('logs', async (ctx) => {
     }
     
     const logsArray = Array.isArray(logs) ? logs : [logs];
-    const displayLogs = logsArray.slice(0, 10); // Mostrar últimos 10
+    const displayLogs = logsArray.slice(0, 5); // Mostrar últimos 5
     
-    let message = `📝 <b>System Logs</b>\n`;
+    // Header con emoji y título
+    let message = `📋 <b>System Audit Trail</b>\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━\n`;
     
     if (chargerId) {
-      message += `<b>Charger:</b> ${chargerId}\n`;
+      message += `🎯 <b>Filter:</b> ${chargerId}\n`;
+      message += `━━━━━━━━━━━━━━━━━━━━\n`;
     }
     
-    
-    message += `\n<b>Showing ${displayLogs.length} of ${logsArray.length} logs:</b>\n\n`;
+    message += `📊 <b>Showing last ${displayLogs.length} of ${logsArray.length} logs</b>\n\n`;
     
     displayLogs.forEach((log, index) => {
       const timestamp = log.timestamp || 'N/A';
       const logMessage = log.message || 'No message';
       const charger = log.charger_id || 'N/A';
       
-      message += `${index + 1}. <b>${formatDate(timestamp)}</b>\n`;
-      message += `   Charger: ${charger}\n`;
-      message += `   Message: ${logMessage}\n`;
+      // Determinar emoji según el tipo de mensaje
+      let logEmoji = '📝';
+      const lowerMessage = logMessage.toLowerCase();
       
-      if (log.transactions) {
-        message += `   Transactions: ${log.transactions}\n`;
+      if (lowerMessage.includes('error') || lowerMessage.includes('failed')) {
+        logEmoji = '❌';
+      } else if (lowerMessage.includes('success') || lowerMessage.includes('completed')) {
+        logEmoji = '✅';
+      } else if (lowerMessage.includes('warning') || lowerMessage.includes('alert')) {
+        logEmoji = '⚠️';
+      } else if (lowerMessage.includes('charging') || lowerMessage.includes('transaction')) {
+        logEmoji = '⚡️';
+      } else if (lowerMessage.includes('started') || lowerMessage.includes('initiated')) {
+        logEmoji = '🔄';
+      } else if (lowerMessage.includes('battery')) {
+        logEmoji = '🔋';
       }
       
-      if (log.battery !== undefined) {
-        message += `   Battery: ${log.battery.toFixed(1)}%\n`;
+      // Formato mejorado para cada log
+      message += `${logEmoji} <b>Log #${displayLogs.length - index}</b>\n`;
+      message += `🕐 ${formatDate(timestamp)}\n`;
+      message += `🔌 <b>Charger:</b> <code>${charger}</code>\n`;
+      message += `📄 <b>Event:</b> ${logMessage}\n`;
+      
+      // Información adicional
+      if (log.transactions !== undefined && log.transactions !== null) {
+        message += `💰 <b>Transactions:</b> ${log.transactions}\n`;
       }
       
-      message += `\n`;
+      if (log.balance_total !== undefined && log.balance_total !== null) {
+        message += `💵 <b>Balance:</b> $${log.balance_total.toFixed(4)}\n`;
+      }
+      
+      if (log.battery !== undefined && log.battery !== null) {
+        const batteryIcon = log.battery > 80 ? '🔋' : log.battery > 50 ? '🔌' : log.battery > 20 ? '⚠️' : '🪫';
+        message += `${batteryIcon} <b>Battery:</b> ${log.battery.toFixed(1)}%\n`;
+      }
+      
+      if (log.power !== undefined && log.power !== null) {
+        message += `⚡️ <b>Power:</b> ${log.power} kW\n`;
+      }
+      
+      if (log.status) {
+        const emoji = statusEmoji(log.status);
+        message += `${emoji} <b>Status:</b> ${capitalize(log.status)}\n`;
+      }
+      
+      message += `─────────────────────\n`;
     });
     
-    if (logsArray.length > 10) {
-      message += `\n💡 <i>Showing only the first 10 logs. Total: ${logsArray.length}</i>`;
+    // Footer con información útil
+    if (logsArray.length > 5) {
+      message += `\n💡 <i>Showing last 5 of ${logsArray.length} total logs</i>\n`;
     }
     
+    if (!chargerId) {
+      message += `\n🔍 <b>Tip:</b> Use <code>/logs CHARGER_XXX</code> for charger-specific logs`;
+    }
     
     await ctx.replyWithHTML(message);
     
@@ -679,7 +839,20 @@ bot.on('text', async (ctx) => {
   
   const userId = ctx.from.id;
   const userName = ctx.from.first_name || 'Usuario';
-  const userMessage = ctx.message.text;
+  let userMessage = ctx.message.text;
+  const chatType = ctx.chat.type; // 'private', 'group', 'supergroup', 'channel'
+  
+  // En grupos: limpiar mención si existe
+  if (chatType === 'group' || chatType === 'supergroup') {
+    const botUsername = (ctx.botInfo || bot.botInfo)?.username;
+    if (botUsername && userMessage.includes(`@${botUsername}`)) {
+      userMessage = userMessage.replace(`@${botUsername}`, '').trim();
+      // Si después de limpiar la mención queda vacío, usar mensaje por defecto
+      if (!userMessage) {
+        userMessage = 'hola';
+      }
+    }
+  }
   
   // Rate limiting
   const now = Date.now();
@@ -690,11 +863,41 @@ bot.on('text', async (ctx) => {
   }
   
   userLastMessage.set(userId, now);
-  
+
+  if (detectsStackProbe(userMessage)) {
+    await ctx.reply(
+      'Access controls active. Implementation details are restricted.\n\nFocus: telemetry ops. Use /help for supported commands.'
+    );
+    return;
+  }
+
+  // Detectar si pide información de logs
+  if (detectsLogsIntent(userMessage)) {
+    const chargerId = extractChargerId(userMessage);
+
+    if (chargerId) {
+      // Redirigir al comando /logs con ID específico
+      ctx.message.text = `/logs ${chargerId}`;
+      return bot.command('logs').middleware()(ctx, () => {});
+    } else {
+      // Scripted response for "logs"
+      await ctx.replyWithHTML(
+        `📋 <b>Audit Trail Interface</b>\n\n` +
+        `📊 <b>System-wide logs:</b> <code>/logs</code>\n` +
+        `View the last 5 events across all chargers\n\n` +
+        `🔍 <b>Charger-specific logs:</b> <code>/logs CHARGER_00x</code>\n` +
+        `Example: <code>/logs CHARGER_001</code>\n\n` +
+        `💡 Logs include: transactions, battery changes, status updates, and system events.\n\n` +
+        `<i>Evidence first, then action.</i>`
+      );
+      return;
+    }
+  }
+
   // Detectar si pide información de status
   if (detectsStatusIntent(userMessage)) {
     const chargerId = extractChargerId(userMessage);
-    
+
     if (chargerId) {
       // Redirigir al comando /status
       ctx.message.text = `/status ${chargerId}`;
