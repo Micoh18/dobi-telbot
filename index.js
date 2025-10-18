@@ -774,7 +774,7 @@ bot.command('ping', async (ctx) => {
  */
 bot.command('status', async (ctx) => {
   const args = ctx.message.text.split(' ').slice(1);
-  const chargerId = args[0];
+  const chargerId = args[0] ? args[0].toUpperCase() : null;
   
   // Mostrar typing indicator
   await ctx.sendChatAction('typing');
@@ -826,7 +826,7 @@ bot.command('status', async (ctx) => {
  */
 bot.command('logs', async (ctx) => {
   const args = ctx.message.text.split(' ').slice(1);
-  const chargerId = args[0] || null;
+  const chargerId = args[0] ? args[0].toUpperCase() : null;
   
   await ctx.sendChatAction('typing');
   
