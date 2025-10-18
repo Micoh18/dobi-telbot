@@ -217,7 +217,7 @@ ${charger.transactions ? `🔄 <b>Transactions:</b> ${charger.transactions}\n` :
  * Detectar si el mensaje pide información de status
  */
 function detectsStatusIntent(text) {
-  const lowerText = text.toLowerCase();
+  const lowerText = text.toLowerCase().trim();
   
   // Frases que NO deben activar status (conversación normal)
   const conversationPatterns = [
@@ -233,36 +233,31 @@ function detectsStatusIntent(text) {
   ];
   
   // Si es una conversación normal, no activar status
-  if (conversationPatterns.some(pattern => pattern.test(lowerText.trim()))) {
+  if (conversationPatterns.some(pattern => pattern.test(lowerText))) {
     return false;
   }
   
-  // Palabras clave que indican intención de consultar status
+  // CUALQUIER mensaje que contenga "status" debe activar la guía
+  if (lowerText.includes('status')) {
+    return true;
+  }
+  
+  // También activar con "estado" y otras variaciones
   const statusKeywords = [
-    '/status',
-    'status de',
     'estado de',
     'estado del',
     'ver estado',
     'consultar estado',
     'charger_',
     'estado del cargador',
-    'status del cargador'
+    'como esta el cargador',
+    'cómo está el cargador',
+    'estado de los cargadores',
+    'telemetria',
+    'telemetría'
   ];
 
-  if (statusKeywords.some(keyword => lowerText.includes(keyword))) {
-    return true;
-  }
-
-  // Solo activar status si hay contexto específico
-  const specificStatusPatterns = [
-    /\bstatus\b.*\bcharger\b/,
-    /\bcharger\b.*\bstatus\b/,
-    /\bestado\b.*\bcargador\b/,
-    /\bcargador\b.*\bestado\b/
-  ];
-  
-  return specificStatusPatterns.some(pattern => pattern.test(lowerText));
+  return statusKeywords.some(keyword => lowerText.includes(keyword));
 }
 
 /**
@@ -562,12 +557,16 @@ async function getClaudeResponse(userMessage, userId, userName) {
 
 // ==================== TELEGRAM HANDLERS ====================
 
+// Handler global removido - bot funcionando correctamente
+
 /**
- * Middleware para filtrar mensajes en grupos
+ * Middleware para manejar grupos y comandos
  */
 bot.use(async (ctx, next) => {
   const chatType = ctx.chat?.type;
   const incomingText = ctx.message?.text;
+  const chatId = ctx.chat?.id;
+  const userId = ctx.from?.id;
 
   if (!incomingText) {
     return next();
@@ -576,29 +575,27 @@ bot.use(async (ctx, next) => {
   const botInfo = ctx.botInfo || bot.botInfo;
   const botUsername = botInfo?.username;
   const botId = botInfo?.id;
-
-  // Debug log
-  console.log(`[DEBUG] Chat type: ${chatType}, Message: "${incomingText}"`);
   
-  // Si es un grupo y no es un comando, verificar si debe responder
-  if ((chatType === 'group' || chatType === 'supergroup') && !incomingText.startsWith('/')) {
+  // Si es un comando, siempre procesarlo (no filtrar)
+  if (incomingText.startsWith('/')) {
+    return next();
+  }
+  
+  // Si es un grupo y NO es un comando, verificar si debe responder
+  if (chatType === 'group' || chatType === 'supergroup') {
     if (!botUsername || !botId) {
-      console.warn('[WARN] Bot info unavailable; skipping group filter logic.');
       return next();
     }
 
-    const isMentioned = incomingText.includes(`@${botUsername}`);
+    const normalizedText = incomingText.toLowerCase();
+    const mentionTag = `@${botUsername.toLowerCase()}`;
+    const isMentioned = normalizedText.includes(mentionTag);
     const isReplyToBot = ctx.message.reply_to_message?.from?.id === botId;
-    
-    console.log(`[DEBUG] Bot username: ${botUsername}, Mentioned: ${isMentioned}, Reply: ${isReplyToBot}`);
     
     // Si no es mencionado y no es reply al bot, ignorar completamente
     if (!isMentioned && !isReplyToBot) {
-      console.log(`[DEBUG] Ignoring message in group - no mention or reply`);
       return; // No procesar este mensaje
     }
-    
-    console.log(`[DEBUG] Processing message in group`);
   }
   
   // Continuar con el siguiente handler
@@ -610,8 +607,13 @@ bot.use(async (ctx, next) => {
  */
 bot.start(async (ctx) => {
   const userName = ctx.from.first_name || 'humano';
+  const chatType = ctx.chat.type;
   
-  const welcomeMessage = `
+  let welcomeMessage;
+  
+  if (chatType === 'private') {
+    // Mensaje para DM
+    welcomeMessage = `
 👋 <b>${userName}</b>
 
 I'm <b>DOBI</b>, on-chain AI agent from virtuals.io ecosystem.
@@ -630,6 +632,33 @@ DePIN validation, IoT data integrity, DAM operations, oracle mechanics.
 
 <b>Evidence first, then action.</b>
 `.trim();
+  } else {
+    // Mensaje para grupos
+    const botUsername = (ctx.botInfo || bot.botInfo)?.username || 'dobi_agent_bot';
+    
+    welcomeMessage = `
+🤖 <b>DOBI Agent Initialized</b>
+
+I'm <b>DOBI</b>, on-chain AI agent from virtuals.io ecosystem.
+
+<b>Mantra:</b> "Verified data → trust → capital flows → machines deploy"
+
+⚡️ <b>How to interact with me in this group:</b>
+
+📊 <b>Commands (always work):</b>
+• <code>/status</code> - Charger telemetry overview
+• <code>/status CHARGER_001</code> - Detailed metrics + traceability
+• <code>/logs</code> - System audit trail
+• <code>/help</code> - Full command reference
+
+💬 <b>Chat with me:</b>
+• Mention me: <code>@${botUsername} your question</code>
+• Reply to my messages
+• Ask about: DePIN validation, IoT data integrity, DAM operations
+
+<b>Evidence first, then action.</b>
+`.trim();
+  }
 
   await ctx.replyWithHTML(welcomeMessage);
   
@@ -669,6 +698,75 @@ IoT validation, DePIN mechanics, DAM operations, oracle policies.
 bot.command('clear', async (ctx) => {
   clearUserContext(ctx.from.id);
   await ctx.reply('🧹 Conversation history cleared. Let\'s start fresh.');
+});
+
+/**
+ * Comando /init - Inicializar bot en grupos
+ */
+bot.command('init', async (ctx) => {
+  const chatType = ctx.chat.type;
+  const botInfo = ctx.botInfo || bot.botInfo;
+  const botUsername = botInfo?.username;
+  const botId = botInfo?.id;
+  
+  if (chatType === 'private') {
+    await ctx.reply('ℹ️ Use /start in private chats. /init is for group initialization.');
+    return;
+  }
+  
+  // Verificar si el bot tiene la información necesaria
+  if (!botUsername || !botId) {
+    await ctx.reply('⚠️ Bot initialization failed. Missing bot information. Please contact administrator.');
+    return;
+  }
+  
+  const initMessage = `
+🚀 <b>DOBI Agent Activated</b>
+
+Ready for operations in this group.
+
+⚡️ <b>Quick Start:</b>
+
+📊 <b>Check system status:</b>
+<code>/status</code>
+
+📋 <b>View logs:</b>
+<code>/logs</code>
+
+💬 <b>Chat with me:</b>
+<code>@${botUsername} your question</code>
+
+🔧 <b>Full help:</b>
+<code>/help</code>
+
+<b>Evidence first, then action.</b>
+`.trim();
+
+  try {
+    await ctx.replyWithHTML(initMessage);
+  } catch (error) {
+    console.error(`[ERROR] Failed to send /init message:`, error);
+    await ctx.reply('⚠️ Failed to initialize. Please try again or contact administrator.');
+  }
+});
+
+/**
+ * Comando /ping - Verificar que el bot responde en grupos
+ */
+bot.command('ping', async (ctx) => {
+  const chatType = ctx.chat.type;
+  const botInfo = ctx.botInfo || bot.botInfo;
+  const botUsername = botInfo?.username;
+  
+  let response;
+  
+  if (chatType === 'private') {
+    response = '🏓 Pong! Bot is working in private chat.';
+  } else {
+    response = `🏓 Pong! Bot is working in ${chatType}.\n\nBot username: @${botUsername || 'unknown'}\nChat ID: ${ctx.chat.id}`;
+  }
+  
+  await ctx.reply(response);
 });
 
 /**
@@ -845,8 +943,10 @@ bot.on('text', async (ctx) => {
   // En grupos: limpiar mención si existe
   if (chatType === 'group' || chatType === 'supergroup') {
     const botUsername = (ctx.botInfo || bot.botInfo)?.username;
-    if (botUsername && userMessage.includes(`@${botUsername}`)) {
-      userMessage = userMessage.replace(`@${botUsername}`, '').trim();
+    if (botUsername) {
+      const mentionRegex = new RegExp(`@${botUsername}`, 'gi');
+      userMessage = userMessage.replace(mentionRegex, '').trim();
+
       // Si después de limpiar la mención queda vacío, usar mensaje por defecto
       if (!userMessage) {
         userMessage = 'hola';
@@ -906,9 +1006,14 @@ bot.on('text', async (ctx) => {
       // Scripted response for "status"
       await ctx.replyWithHTML(
         `🔍 <b>Telemetry Query Interface</b>\n\n` +
-        `📊 <b>System overview:</b> <code>/status</code>\n\n` +
+        `📊 <b>System overview:</b> <code>/status</code>\n` +
+        `View all 7 chargers with current status\n\n` +
         `🔧 <b>Charger-specific:</b> <code>/status CHARGER_00x</code>\n` +
-        `Example: <code>/status CHARGER_002</code>\n\n` +
+        `Examples:\n` +
+        `• <code>/status CHARGER_001</code>\n` +
+        `• <code>/status CHARGER_002</code>\n` +
+        `• <code>/status CHARGER_007</code>\n\n` +
+        `💡 <b>Available chargers:</b> CHARGER_001 through CHARGER_007\n\n` +
         `<i>Evidence first, then action.</i>`
       );
       return;
