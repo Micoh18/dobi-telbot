@@ -40,16 +40,6 @@ Create a `.env` file:
 touch .env
 ```
 
-Edit `.env` with your credentials:
-
-```env
-TELEGRAM_BOT_TOKEN=8445157577:AAEuFQzq3YTjLHegoVjaEK-zXfRDPct76icA
-ANTHROPIC_API_KEY=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
-API_BASE_URL=https://api-aleph.dobi.guru
-NODE_ENV=production
-PORT=3000
-```
-
 ### 🔑 Getting Credentials
 
 **Telegram Bot Token:**
